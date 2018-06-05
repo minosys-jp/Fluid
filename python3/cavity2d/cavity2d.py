@@ -41,15 +41,18 @@ for t in range(4, len(ps_list), 5):
 	v = signal.correlate(ps_list[t], -kx, 'same') * n
 
 	# 境界条件
+	ut = u.T
+	vt = v.T
+	ut[0] = np.zeros(n, dtype=np.float32)
+	ut[n - 1] = np.zeros(n, dtype=np.float32)
+	vt[0] = np.zeros(n, dtype=np.float32)
+	vt[n - 1] = np.zeros(n, dtype=np.float32)
+	u = ut.T
+	v = vt.T
 	u[0] = np.zeros(n, dtype=np.float32)
 	u[n - 1] = np.ones(n, dtype=np.float32)
 	v[0] = np.zeros(n, dtype=np.float32)
 	v[n - 1] = np.zeros(n, dtype=np.float32)
-	for i in range(n):
-		u[i][0] = 0
-		u[i][n - 1] = 0
-		v[i][0] = 0
-		v[i][n - 1] = 0
 	art = []
 	sca = plt.scatter(xs.flatten(), ys.flatten(), c = 'blue', marker = 'o')
 	art.append(sca)

@@ -2,7 +2,7 @@
 from numba import cuda
 import numpy as np
 
-@cuda.jit
+@cuda.jit('void(float32[:,:], float32[:,:], float32[:,:], int32)')
 def vecSolve(out, q, dcp, n):
 	x = cuda.threadIdx.x + cuda.blockIdx.x * cuda.blockDim.x
 	y = cuda.threadIdx.y + cuda.blockIdx.y * cuda.blockDim.y
@@ -26,7 +26,7 @@ def solve(q0, p):
 	dc = d * d / 4
 	dcp = dc * p
 	l2 = n ** 2
-	threadN = (8, 8)
+	threadN = (16, 16)
 	blockN = ((n + threadN[0] - 1) // threadN[0], (n + threadN[1] - 1) // threadN[1])
 	qtmp = np.zeros((n, n), dtype=np.float32)
 	while (True):
