@@ -2,40 +2,41 @@
 from numba import cuda
 import numpy as np
 
-@cuda.jit('void(float32[:,:], float32[:,:], float32[:,:], int32)')
-def vecSolve(out, q, dcp, n):
-	x = cuda.threadIdx.x + cuda.blockIdx.x * cuda.blockDim.x
-	y = cuda.threadIdx.y + cuda.blockIdx.y * cuda.blockDim.y
+@cuda.jit('void(float32[:,:], float32[:,:], float32[:,:], float32[:,:], int32)', nopython = True)
+def vecSolve(er, out, q, dcp, n):
+	x, y = cuda.grid(2)
 	if x == 0 and y < n:
-		out[y][x] = 0
+		out[y, x] = 0
 	elif y == 0 and x < n:
-		out[y][x] = 0
+		out[y, x] = 0
 	elif x == n - 1 and y < n:
-		out[y][x] = 0
+		out[y, x] = 0
 	elif y == n - 1 and x < n:
-		out[y][x] = 0
+		out[y, x] = 0
 	elif x < n and y < n:
-		tmp = q[y][x - 1] + q[y][x + 1] + q[y - 1][x] + q[y + 1][x]
-		tmp = tmp / 4 + dcp[y][x]
-		out[y][x] = tmp
+		tmp = q[y, x - 1] + q[y, x + 1] + q[y - 1, x] + q[y + 1, x]
+		tmp = tmp / 4 + dcp[y, x]
+		out[y, x] = tmp
+	if x < n and y < n:
+		er[y, x] = out[y, x] - q[y, x]
 
 def solve(q0, p):
 	q = np.array(q0, dtype = np.float32)
-	n = len(q)
+	n = q.shape[0]
 	d = 1 / n
 	dc = d * d / 4
 	dcp = dc * p
 	l2 = n ** 2
-	threadN = (16, 16)
+	threadN = (8, 8)
 	blockN = ((n + threadN[0] - 1) // threadN[0], (n + threadN[1] - 1) // threadN[1])
-	qtmp = np.zeros((n, n), dtype=np.float32)
 	while (True):
 		# solve poisson equation by CUDA
-		vecSolve[blockN, threadN](qtmp, q, dcp, n)
+		qtmp = np.zeros((n, n), dtype=np.float32)
+		er = np.zeros((n, n), dtype=np.float32)
+		vecSolve[blockN, threadN](er, qtmp, q, dcp, n)
 
 		# error function
-		er = qtmp - q
-		er = np.sqrt(np.dot(er, er).sum()/l2)
+		er = np.sqrt(np.dot(er, er).sum())/n
 		if er < 1e-3:
 			return qtmp
 		q = qtmp
